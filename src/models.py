@@ -4,9 +4,9 @@ from transformers import AutoTokenizer, AutoModelForCausalLM
 import config
 import utils
 
-print("=" * 60)
-print("LOADING FAST MODEL (FP16 - SINGLE GPU)")
-print("=" * 60)
+# print("=" * 60)
+# print("LOADING FAST MODEL (FP16 - SINGLE GPU)")
+# print("=" * 60)
 load_start = time.time()
 
 # Load Tokenizer & Model
@@ -24,10 +24,10 @@ model = AutoModelForCausalLM.from_pretrained(
 model.eval()
 
 if config.USE_COMPILE:
-    print("Compiling model…")
+    # print("Compiling model…")
     model = torch.compile(model, mode="reduce-overhead")
 
-print(f"Model loaded in {time.time() - load_start:.2f}s")
+# print(f"Model loaded in {time.time() - load_start:.2f}s")
 
 # Cache token IDs cho các chữ cái nhãn lựa chọn
 MAX_CHOICES = 26
@@ -130,12 +130,12 @@ def predict_batch_cot(batch: list[dict]) -> list[dict]:
         if not pred: 
             pred = labels[0]
 
-        if b_idx == 0:
-            print("\n" + "-"*40)
-            print(f"📝 [DEBUG CoT] {sample['question'][:60]}...")
-            print(f"🤖 [OUTPUT]: {clean_output}")
-            print(f"🎯 [PRED]: {pred}")
-            print("-"*40)
+        # if b_idx == 0:
+        #     print("\n" + "-"*40)
+        #     print(f"📝 [DEBUG CoT] {sample['question'][:60]}...")
+        #     print(f"🤖 [OUTPUT]: {clean_output}")
+        #     print(f"🎯 [PRED]: {pred}")
+        #     print("-"*40)
 
         results.append({
             "pred": pred,

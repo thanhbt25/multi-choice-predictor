@@ -26,57 +26,77 @@ graph TD
     H --> L[Xuất file submission.csv & submission_time.csv]
 ```
 
-Chi tiết các bước:
-Câu hỏi được đưa qua bộ Rule-based Router: Sử dụng Regex và tập từ khóa (Keywords) để phân loại xem đây là câu hỏi tính toán/suy luận hay kiến thức thông thường.
+# Chi tiết các bước:
+## 1. Tổng quát 
 
-Inference (Lần 1): Chạy mô hình (sử dụng format CoT cho câu hỏi suy luận và Direct cho câu hỏi thường). Mô hình tính toán phân phối xác suất (Logits) hoặc sinh câu trả lời để dự đoán đáp án.
+- Câu hỏi được đưa qua bộ Rule-based Router: Sử dụng Regex và tập từ khóa (Keywords) để phân loại xem đây là câu hỏi tính toán/suy luận hay kiến thức thông thường.
 
-Đánh giá Độ tự tin (Confidence Assessment): Nếu chênh lệch xác suất giữa top 1 và top 2 đủ lớn (>= ngưỡng 0.7), chốt ngay đáp án để tiết kiệm thời gian.
+- Inference (Lần 1): Chạy mô hình (sử dụng format CoT cho câu hỏi suy luận và Direct cho câu hỏi thường). Mô hình tính toán phân phối xác suất (Logits) hoặc sinh câu trả lời để dự đoán đáp án.
 
-Dynamic TTA (Lần 2): Những câu mô hình phân vân sẽ được xáo trộn vị trí các đáp án (Shuffle choices) và chạy lại 2-3 lần. Hệ thống sau đó dùng thuật toán Bầu chọn theo đa số (Majority Voting) để đưa ra đáp án cuối cùng.
+- Đánh giá Độ tự tin (Confidence Assessment): Nếu chênh lệch xác suất giữa top 1 và top 2 đủ lớn (>= ngưỡng 0.7), chốt ngay đáp án để tiết kiệm thời gian.
 
-2. Data Processing (Tiền Xử Lý Dữ Liệu)
-Quá trình thu thập, làm sạch và xử lý dữ liệu được tự động hóa hoàn toàn trong lúc chạy:
+- Dynamic TTA (Lần 2): Những câu mô hình phân vân sẽ được xáo trộn vị trí các đáp án (Shuffle choices) và chạy lại 2-3 lần. Hệ thống sau đó dùng thuật toán Bầu chọn theo đa số (Majority Voting) để đưa ra đáp án cuối cùng.
 
-Parse Dữ liệu: Đọc file /code/private_test.json.
+## 2. Data Processing (Tiền Xử Lý Dữ Liệu)
+- Quá trình thu thập, làm sạch và xử lý dữ liệu được tự động hóa hoàn toàn trong lúc chạy:
 
-Làm sạch & Chuẩn hóa: Trích xuất phần question và danh sách choices. Tự động gắn nhãn (A, B, C, D...) cho các lựa chọn.
+- Parse Dữ liệu: Đọc file /code/private_test.json.
 
-Xử lý TTA (Test-Time Augmentation): Hàm get_shuffled_variants() sẽ xáo trộn vòng tròn vị trí các lựa chọn đầu vào, đi kèm một bộ từ điển mapping để ánh xạ ngược đáp án sinh ra (A, B, C, D mới) về nhãn ban đầu nhằm tránh thiên kiến (Bias) của LLM với các nhãn nhất định.
+- Làm sạch & Chuẩn hóa: Trích xuất phần question và danh sách choices. Tự động gắn nhãn (A, B, C, D...) cho các lựa chọn.
 
-Post-Processing (Hậu xử lý): Phân tích chuỗi sinh ra bằng CoT. Thuật toán tìm kiếm cụm từ khóa ĐÁP ÁN hoặc truy xuất ký tự chữ cái cô lập cuối cùng trong văn bản sinh ra để tách chính xác đáp án cần chọn.
+- Xử lý TTA (Test-Time Augmentation): Hàm get_shuffled_variants() sẽ xáo trộn vòng tròn vị trí các lựa chọn đầu vào, đi kèm một bộ từ điển mapping để ánh xạ ngược đáp án sinh ra (A, B, C, D mới) về nhãn ban đầu nhằm tránh thiên kiến (Bias) của LLM với các nhãn nhất định.
 
-3. Resource Initialization (Khởi Tạo Tài Nguyên)
-Tải Trọng số Mô hình: Hệ thống khởi tạo trực tiếp mô hình Qwen/Qwen3.5-4B từ Hugging Face ở chuẩn FP16 (Float16) nhằm tương thích hoàn toàn với GPU NVIDIA RTX 5060Ti (16GB VRAM) của Ban Tổ Chức. Mô hình được tải vào VRAM với cấu hình Attention tối ưu (attn_implementation="sdpa") và cấp phát bộ nhớ động (expandable_segments:True).
+- Post-Processing (Hậu xử lý): Phân tích chuỗi sinh ra bằng CoT. Thuật toán tìm kiếm cụm từ khóa ĐÁP ÁN hoặc truy xuất ký tự chữ cái cô lập cuối cùng trong văn bản sinh ra để tách chính xác đáp án cần chọn.
 
-Vector Database & Indexing: > Lưu ý: Cấu trúc giải pháp của đội tập trung vào Zero-shot Reasoning & Dynamic TTA, tối đa hoá sức mạnh kiến thức nền nội tại của LLM thay vì sử dụng External Knowledge (RAG). Do đó, giải pháp này KHÔNG yêu cầu khởi tạo Vector Database hay tạo Embedding Indexing. Điều này giúp loại bỏ nguy cơ nhiễu thông tin (noise retrieval) và giúp tốc độ chạy của hệ thống tăng lên đáng kể, giảm rủi ro về giới hạn bộ nhớ (OOM).
+## 3. Resource Initialization (Khởi Tạo Tài Nguyên)
+- Tải Trọng số Mô hình: Hệ thống khởi tạo trực tiếp mô hình Qwen/Qwen3.5-4B từ Hugging Face ở chuẩn FP16 (Float16) nhằm tương thích hoàn toàn với GPU NVIDIA RTX 5060Ti (16GB VRAM) của Ban Tổ Chức. Mô hình được tải vào VRAM với cấu hình Attention tối ưu (attn_implementation="sdpa") và cấp phát bộ nhớ động (expandable_segments:True).
 
-4. Hướng Dẫn Vận Hành Dành Cho Ban Tổ Chức (BTC)
-Các thông số phần cứng dự kiến: NVIDIA RTX 5060Ti (16GB VRAM). Cấu hình đã được đội tinh chỉnh (Batch size, Max tokens) để tuyệt đối không xảy ra Out Of Memory.
+- Vector Database & Indexing: > Lưu ý: Cấu trúc giải pháp của đội tập trung vào Zero-shot Reasoning & Dynamic TTA, tối đa hoá sức mạnh kiến thức nền nội tại của LLM thay vì sử dụng External Knowledge (RAG). Do đó, giải pháp này KHÔNG yêu cầu khởi tạo Vector Database hay tạo Embedding Indexing. Điều này giúp loại bỏ nguy cơ nhiễu thông tin (noise retrieval) và giúp tốc độ chạy của hệ thống tăng lên đáng kể, giảm rủi ro về giới hạn bộ nhớ (OOM).
 
-Bước 1: Build Docker Image
-Mở terminal tại thư mục gốc của dự án (nơi chứa file Dockerfile):
+# 📦 HƯỚNG DẪN VẬN HÀNH PIPELINE SUY LUẬN (QWEN FP16)
 
-Bash
+Hệ thống mã nguồn này được thiết kế để tự động đóng gói, tối ưu hóa bộ nhớ và thực thi pipeline suy luận cho bài toán trắc nghiệm (Multi-choice Prediction) sử dụng kiến trúc mô hình Qwen FP16.
+
+---
+
+## 💻 1. Cấu Hình Phần Cứng Khuyến Nghị
+* **GPU:** NVIDIA RTX 5060Ti (16GB VRAM) hoặc tương đương.
+* **Trạng thái tối ưu:** Đội ngũ phát triển đã tinh chỉnh kỹ lưỡng các tham số hệ thống (**Batch size**, **Max tokens**, và **Context Window**) phù hợp với 16GB VRAM, đảm bảo hệ thống vận hành liên tục và **tuyệt đối không xảy ra lỗi Out Of Memory (OOM)**.
+
+---
+
+## 🚀 2. Quy Trình Khởi Chạy Hệ Thống
+
+Mở Terminal tại thư mục gốc của dự án (nơi chứa `Dockerfile`) và thực hiện tuần tự các bước sau:
+
+### 🔹 Bước 1: Build Docker Image
+Tiến hành xây dựng môi trường cô lập từ Dockerfile:
+```bash
 docker build -t team_submission_image .
-Bước 2: Run Container
-⚠️ YÊU CẦU QUAN TRỌNG VỀ TÀI NGUYÊN: Vì hệ thống tận dụng tối đa khả năng xử lý song song và cấp phát bộ nhớ động của PyTorch/HuggingFace, kính mong BTC chạy container kèm cờ --ipc=host (hoặc --shm-size=8g) để cấp đủ Shared Memory, tránh hiện tượng treo (freeze) tiến trình.
+```
+
+### 🔹 Bước 2: Khởi Chạy Container (Run Container)
+#### ⚠️ YÊU CẦU QUAN TRỌNG VỀ TÀI NGUYÊN (SHARED MEMORY):
+
+Do hệ thống tận dụng tối đa khả năng xử lý song song và cấp phát bộ nhớ động của PyTorch/HuggingFace, kính mong BTC chạy container kèm cờ --ipc=host (hoặc --shm-size=8g) để cấp đủ Shared Memory, tránh hiện tượng treo (freeze) tiến trình trong quá trình phân tách batch dữ liệu.
 
 Cú pháp lệnh thực thi chuẩn:
 
-Bash
+```Bash
 docker run --gpus all --ipc=host \
   -v /absolute/path/to/host/data_dir:/code \
   team_submission_image
-Trong đó: * /absolute/path/to/host/data_dir là đường dẫn thư mục nằm trên máy thật của BTC.
+```
 
-Yêu cầu: Thư mục này phải chứa sẵn file dữ liệu đầu vào mang tên private_test.json.
+#### 📌 Giải thích tham số Mount dữ liệu:
+- /absolute/path/to/host/data_dir là đường dẫn thư mục tuyệt đối nằm trên máy chủ (host) của BTC.
 
-Bước 3: Thu thập kết quả
-Ngay sau khi quá trình log trên màn hình hiển thị hoàn tất (✅ HOÀN THÀNH. Đã lưu file CSV theo chuẩn BTC.), hệ thống sẽ tự động sinh ra 2 file tại chính thư mục /absolute/path/to/host/data_dir vừa mount:
+- Yêu cầu bắt buộc: Thư mục này phải chứa sẵn file dữ liệu đầu vào mang tên private_test.json. Khi thực hiện lệnh trên, file này sẽ được mount trực tiếp vào thư mục /code bên trong container (/code/private_test.json) đúng theo đặc tả yêu cầu của hệ thống chấm điểm.
 
-submission.csv (Chứa ID câu hỏi và đáp án)
+### 📊 3. Thu Thập Kết Quả Đầu Ra (Outputs)
+Ngay sau khi quá trình suy luận kết thúc, hệ thống sẽ tự động sinh ra 02 file kết quả ngay tại thư mục host được mount (/absolute/path/to/host/data_dir tương ứng với /code trong container):
 
-submission_time.csv (Chứa ID câu hỏi và thời gian thực thi của riêng câu hỏi đó, đã được chia trung bình song song).
+- submission.csv: Khớp mã định danh câu hỏi (id) và đáp án dự đoán tương ứng.
 
-Đội JAPAI xin chân thành cảm ơn Ban Tổ Chức!
+- submission_time.csv: Ghi nhận thời gian thực thi chi tiết của từng câu hỏi (đã được chuẩn hóa qua luồng xử lý song song).
+

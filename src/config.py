@@ -6,7 +6,7 @@ os.environ["PYTORCH_ALLOC_CONF"] = "expandable_segments:True"
 
 # Cấu hình Model & Dữ liệu
 MODEL_NAME   = "Qwen/Qwen3.5-4B"
-INPUT_FILE   = "code/public-test_1780368312.json" 
+INPUT_FILE   = "code/private_test.json" 
 
 # Tham số Inference
 BATCH_SIZE   = 10
