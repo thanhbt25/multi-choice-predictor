@@ -9,7 +9,7 @@ MODEL_NAME   = "Qwen/Qwen3.5-4B"
 INPUT_FILE   = "code/public-test_1780368312.json" 
 
 # Tham số Inference
-BATCH_SIZE   = 8
+BATCH_SIZE   = 10
 USE_COMPILE  = False
 
 GAP_THRESHOLDS = {
