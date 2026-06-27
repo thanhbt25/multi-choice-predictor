@@ -22,13 +22,11 @@ RUN ln -s /usr/bin/python3 /usr/bin/python
 RUN pip install --no-cache-dir -U pip && \
     pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cu124
 
-# 4. Cài đặt các thư viện Python theo layer cache của bạn
+# 4. Cài đặt tập trung toàn bộ thư viện thông qua requirements.txt
 COPY requirements.txt .
-RUN pip install --no-cache-dir git+https://github.com/huggingface/transformers.git && \
-    pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy file dữ liệu và toàn bộ mã nguồn
-COPY private_test.json .
+# Copy toàn bộ mã nguồn logic vào container
 COPY src/ ./src/
 
 ENTRYPOINT ["python", "src/predict.py"]
